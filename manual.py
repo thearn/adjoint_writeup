@@ -115,4 +115,4 @@ print "dF_dz1:", derivs[('obj', 'z')]['J_rev'][0][0], derivs[('con1', 'z')]['J_r
 print "dF_dz2:", derivs[('obj', 'z')]['J_rev'][0][1], derivs[('con1', 'z')]['J_rev'][0][1], derivs[('con2', 'z')]['J_rev'][0][1]
 print "dF_dx1:", derivs[('obj', 'x')]['J_rev'][0][0], derivs[('con1', 'x')]['J_rev'][0][0], derivs[('con2', 'x')]['J_rev'][0][0]
 
-
+# all values match
