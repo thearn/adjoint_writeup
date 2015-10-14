@@ -1,0 +1,123 @@
+
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+\title{Walkthrough Of The Adjoint Method For Coupled Derivatives}
+\author{Tristan A. Hearn}
+\begin{document}
+
+
+\maketitle
+
+\section{Duality: A Simple Example}
+
+Consider the task:
+
+$$\text{Compute: } g x$$
+$$\text{Such that: } a x = b$$
+
+where $g, a, b \in \mathbb{R}$ are known numbers with $a \ne 0$, but $x$ is unknown. This task is pretty straightforward,
+you just solve the linear equation, and multiply the solution by $g$. In the end, the 
+needed result is computed as
+
+$$\frac{gb}{a}.$$
+
+Notice that we would arrive at the same result if the original problem is written as
+
+$$\text{Compute: } b y$$
+$$\text{Such that: } a y = g$$
+
+This is a problem involving the same known quantities, and results in the
+ same computation: $\frac{gb}{a}$. 
+
+In the context of numerical optimization, the original direct approach is called 
+the \textbf{primal} or \textbf{forward} formulation of the problem, while the latter is known as the 
+\textbf{dual} or \textbf{adjoint} formulation.
+We can take either approach for computing the needed quantity.
+
+\section{Matrix Form Of Duality}
+
+Now consider a similar task:
+
+$$\text{Compute: } G X$$
+$$\text{Such that: } A X = B$$
+
+where $G \in \mathbb{R}^{m \times n}$, $A \in \mathbb{R}^{n \times n}$, and
+$B \in \mathbb{R}^{n \times k}$ are known matrices, and 
+$X \in \mathbb{R}^{n \times k}$ is unknown. 
+
+We can solve $A X = B$ one column of $B$ at a time using a solution method of our
+choice, for a total of $k$ separate $n \times n$ linear system solves.
+
+Conceptually, what we're computing in the end is
+$$ G A^{-1} B$$
+where $A^{-1} B$ denotes the numerical solution of the linear system with $A$ on 
+the left hand side and $B$ on the right.
+
+Just like above, we can note that we can arrive at the same result by re-arrangement
+
+$$G A^{-1} B = \left(\left( G A^{-1} B\right)^T\right)^T = \left( B^T \left(A^T\right)^{-1} G^T \right)^T.$$
+
+So, we have the dual/adjoint formulation:
+
+$$\text{Compute: } \left(B^T Y\right)^T = Y^T B$$
+$$\text{Such that: } A^T Y = G^T$$
+
+under this formulation, we will need to do one $n \times n$ linear solve for each
+column of $G^T$: a total of $m$ solves.
+
+So should we compute the needed result using the forward or adjoint formulation?
+It all comes down to the values of $k$ and $m$. If $k < m$, we should use the forward form.
+if $k > m$, use the adjoint form. If $k = m$, either form is appropriate.
+
+\section{Application To Derivative Calculations}
+
+Let 
+$$\mathbf F \left(\mathbf x, \mathbf y \right) : \mathbb{R}^{k + n} \to \mathbb{R}^{m}$$
+represent the objective function and all constraints of an MDAO problem,
+with $\mathbf x \in \mathbb{R}^{k}$ being a vector of $k$  design variables, and 
+$\mathbf y \in \mathbb{R}^{n}$ being a vector of $n$ state variables.
+
+Additionally, let
+$$\mathbf R \left(\mathbf x, \mathbf y \right) : \mathbb{R}^{k + n} \to \mathbb{R}^{n}$$
+represent a series of $n$ residual equations that describe multidisciplinary coupling.
+So for feasible set of values for $\mathbf x, \mathbf y$, we have
+$$ \mathbf R \left(\mathbf x, \mathbf y \right)  = 0. $$
+
+To perform a major iteration of a gradient-based numerical optimization, we will need to compute the 
+derivative of the quantities of interest $\mathbf F$ with respect to the design variables $\mathbf x$ 
+
+$$ \underbrace {\frac{d \mathbf F}{d \mathbf x}}_{m \times k} = \underbrace {\frac{\partial \mathbf F}{\partial \mathbf x}}_{m \times k} + \underbrace{\frac{\partial \mathbf F}{\partial \mathbf y}}_{m \times n} \underbrace {\frac{d \mathbf y}{d \mathbf x}}_{n \times k}. $$
+
+The partial derivative (Jacobian) matrices $\frac{\partial \mathbf F}{\partial \mathbf x}$, and $\frac{\partial \mathbf F}{\partial \mathbf y}$ are pretty straightforward to compute directly, but the derivative $\frac{d \mathbf y}{d \mathbf x} $ is not, due to coupling. But this coupling is captured by the residual equations $\mathbf R$. And we can similarly write out the derivative of the residual equations with respect to the design variables:
+
+$$\underbrace{\frac{d \mathbf R}{d \mathbf x}}_{n \times k} = \underbrace{\frac{\partial \mathbf R}{\partial \mathbf x}}_{n \times k} + \underbrace{\frac{\partial \mathbf R}{\partial \mathbf y}}_{n \times n} \underbrace{\frac{d \mathbf y}{d \mathbf x}}_{n \times k}  = 0 $$
+
+$$ \Rightarrow \frac{\partial \mathbf R}{\partial \mathbf y} \frac{d \mathbf y}{d \mathbf x} = - \frac{\partial \mathbf R}{\partial \mathbf x}$$
+
+Once again, the Jacobian matrices are straightforward to compute at a given point, and provide a means to solve for the unknown matrix $\frac{d \mathbf y}{d \mathbf x}$. This is done once per each of the $k$ columns of $- \frac{\partial \mathbf R}{\partial \mathbf x}$.
+
+Therefore, the main part of what we want to compute (forward form) is
+$$\text{Compute: } \underbrace{\frac{\partial \mathbf F}{\partial \mathbf y}}_{G} \underbrace{\frac{d \mathbf y}{d \mathbf x}}_{X}$$
+$$\text{Such that: } \underbrace{\frac{\partial \mathbf R}{\partial \mathbf y}}_{A} \underbrace{\frac{d \mathbf y}{d \mathbf x}}_{X} = \underbrace{- \frac{\partial \mathbf R}{\partial \mathbf x}}_{B}$$
+
+Doing this involves performing $k$ linear solves - one solve for each column (design variable) in the right hand side of the equation $\frac{\partial \mathbf R}{\partial \mathbf y} \frac{d \mathbf y}{d \mathbf x} = - \frac{\partial \mathbf R}{\partial \mathbf x}$.
+Once we compute the result, we just have to add $\frac{\partial \mathbf F}{\partial \mathbf x}$ and we have the needed derivatives. This is the forward form of the derivatives calculation. In plain terms, our result is constructed one column at a time as
+
+$$ \underbrace{\frac{d \mathbf F}{d \mathbf x_i}}_{m \times 1} = \underbrace{\frac{\partial \mathbf F}{\partial \mathbf x_i}}_{m \times 1} - \underbrace{\frac{\partial \mathbf F}{\partial \mathbf y}}_{m \times n}\underbrace{\left(\frac{\partial \mathbf R}{\partial \mathbf y}  \right)^{-1} \frac{\partial \mathbf R}{\partial \mathbf x_i}}_{n \times 1}$$
+for each $\mathbf {x}_i$ where, once again, $\left(\cdot\right)^{-1} \left(\cdot\right)$ denotes solution of a linear system by any suitable numerical method, and not direct matrix inversion. 
+
+We can easily construct the adjoint formulation of this problem using the results from Section 2. This gives:
+$$\text{Compute: } - \mathbf{\psi} ^T \frac{\partial \mathbf R}{\partial \mathbf x}$$
+$$\text{Such that: } \frac{\partial \mathbf R}{\partial \mathbf y} ^T \psi  = \frac{\partial \mathbf F}{\partial \mathbf y} ^T $$
+which we solve once for each column of the right hand side matrix $\frac{\partial \mathbf F}{\partial \mathbf y} ^T$ at a time.
+Using this formulation constructs the needed derivatives as
+
+$$\underbrace{\frac{d \mathbf F_i}{d \mathbf x}}_{1 \times k} =  \underbrace{\frac{\partial \mathbf F_i}{\partial \mathbf x}}_{1 \times k} - \underbrace{\left(\left(\frac{\partial \mathbf R}{\partial \mathbf y} ^T\right)^{-1} \frac{\partial \mathbf F_i}{\partial \mathbf y} ^T\right)^T}_{1 \times n} \underbrace{\frac{\partial \mathbf R}{\partial \mathbf x}}_{n \times k} $$
+
+for each $\mathbf {F}_i$. In this case, we see that the linear problems being solved depend on the number of objectives and constraints, rather than the number of design variables. So using the adjoint formulation, we are computing the matrix $\frac{\partial \mathbf F}{\partial \mathbf x}$ one row at a time.
+
+
+\end{document}
